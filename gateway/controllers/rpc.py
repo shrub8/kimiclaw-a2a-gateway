@@ -28,7 +28,7 @@ async def sse_events(req_id, queue: asyncio.Queue):
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        LOG.exception("sse error")
+        LOG.error("sse error req_id=%s error_type=%s", req_id, type(e).__name__)
         yield f"data: {json.dumps(rpc_error(req_id, -32000, f'stream error: {e}'))}\n\n"
 
 

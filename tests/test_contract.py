@@ -216,3 +216,49 @@ def test_success_prompt_not_in_stdout_or_logs_by_default(tmp_path):
 def test_success_prompt_logged_when_payload_flag_on(tmp_path):
     out, _ = _run_success(tmp_path, {"GATEWAY_LOG_PAYLOADS": "1"})
     assert "PROMPT-OK-77" in out
+
+
+def test_notify_failure_logs_type_and_host_only(tmp_path):
+    import httpx
+    from conftest import start_gateway, TOKEN
+    tdir = tmp_path / "tel"
+    url = "http://127.0.0.1:9/SECRET-HOOK-PATH/abc123?k=SECRETQ"
+    p, base, _ = start_gateway(tmp_path, {"GATEWAY_TELEMETRY_DIR": str(tdir), "GATEWAY_NOTIFY_URL": url})
+    h = {"Authorization": f"Bearer {TOKEN}"}
+    r = httpx.post(base + "/", json=_rpc("hello notify", "n1"), headers=h, timeout=30).json()
+    assert r["result"]["status"]["state"] == "completed"
+    import time
+    for _ in range(50):
+        if "failed (" in (tmp_path / "gateway.log").read_text():
+            break
+        time.sleep(0.1)
+    p.terminate(); p.wait(10)
+    out = (tmp_path / "gateway.log").read_text()
+    assert "host=127.0.0.1" in out and "error_type=" in out
+    for text in (out, (tdir / "logs.jsonl").read_text()):
+        for needle in ("SECRET-HOOK-PATH", "abc123", "SECRETQ", "Traceback"):
+            assert needle not in text, needle
+
+
+def test_sse_error_logs_type_only_no_traceback(caplog, monkeypatch, tmp_path):
+    import asyncio, logging
+    from conftest import TOKEN
+    monkeypatch.setenv("KIMICLAW_TOKEN", TOKEN)
+    monkeypatch.setenv("GATEWAY_TELEMETRY_DIR", str(tmp_path / "tel"))
+    from gateway.controllers.rpc import sse_events
+
+    class BadQueue:
+        async def get(self):
+            raise RuntimeError("SECRET-SSE-DETAIL http://x/SECRET-PATH")
+
+    async def collect():
+        return [c async for c in sse_events("s1", BadQueue())]
+
+    with caplog.at_level(logging.DEBUG, logger="kimiclaw"):
+        chunks = asyncio.run(collect())
+    assert len(chunks) == 1 and "stream error: SECRET-SSE-DETAIL" in chunks[0]  # wire unchanged
+    recs = [r for r in caplog.records if r.name == "kimiclaw"]
+    assert any("error_type=RuntimeError" in r.getMessage() for r in recs)
+    for r in recs:
+        assert r.exc_info is None
+        assert "SECRET" not in r.getMessage()

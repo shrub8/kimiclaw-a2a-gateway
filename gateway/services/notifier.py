@@ -2,6 +2,7 @@
 import asyncio
 import json
 import time
+import urllib.parse
 import urllib.request
 
 from gateway.config import LOG, TOKEN, NOTIFY_AUTH_MODE, NOTIFY_AUTH_USER, NOTIFY_TIMEOUT, NOTIFY_URL, NOTIFY_EVENTS, NOTIFY_FAIL_LIMIT, NOTIFY_COOLDOWN_S
@@ -59,8 +60,9 @@ async def notify(event: str, task_id: str, ctx_id: str, extra: dict | None = Non
         _notify_fails += 1
         notify_failures.add(1, {"notify.event": event})
         span.set_attribute("error", True)
-        LOG.warning("notify %s task=%s failed (%d/%d): %s",
-                    event, task_id, _notify_fails, NOTIFY_FAIL_LIMIT, e)
+        LOG.warning("notify %s task=%s failed (%d/%d) host=%s error_type=%s",
+                    event, task_id, _notify_fails, NOTIFY_FAIL_LIMIT,
+                    urllib.parse.urlsplit(NOTIFY_URL).hostname, type(e).__name__)
         if _notify_fails >= NOTIFY_FAIL_LIMIT:
             _notify_disabled_until = time.time() + NOTIFY_COOLDOWN_S
             _notify_fails = 0
