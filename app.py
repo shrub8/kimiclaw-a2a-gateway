@@ -18,71 +18,14 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
-LOG = logging.getLogger("kimiclaw")
-
-
-def _load_token() -> str:
-    tok = os.environ.get("KIMICLAW_TOKEN")
-    if tok:
-        return tok.strip()
-    with open(os.path.join(BASE_DIR, ".env")) as f:
-        for line in f:
-            if line.startswith("KIMICLAW_TOKEN="):
-                return line.split("=", 1)[1].strip()
-    raise RuntimeError("KIMICLAW_TOKEN not set")
-
-
-TOKEN = _load_token()
-NOTIFY_URL = os.environ.get("GATEWAY_NOTIFY_URL", "").strip()
-NOTIFY_AUTH_MODE = os.environ.get("GATEWAY_NOTIFY_AUTH_MODE", "raw").lower()
-NOTIFY_AUTH_USER = os.environ.get("GATEWAY_NOTIFY_AUTH_USER", "agent")
-NOTIFY_EVENTS = {e.strip() for e in os.environ.get(
-    "GATEWAY_NOTIFY_EVENTS", "task_completed,task_failed").split(",") if e.strip()}
-NOTIFY_TIMEOUT = 10
-NOTIFY_FAIL_LIMIT = int(os.environ.get("GATEWAY_NOTIFY_FAIL_LIMIT", "5"))
-NOTIFY_COOLDOWN_S = int(os.environ.get("GATEWAY_NOTIFY_COOLDOWN_S", "900"))
+from gateway.config import *  # noqa: F401,F403
+from gateway.config import LOG, TOKEN
 _notify_fails = 0
 _notify_disabled_until = 0.0
-LOG_PAYLOADS = os.environ.get("GATEWAY_LOG_PAYLOADS", "0") == "1"
-MAX_TEXT = 200_000
-AGENT_TIMEOUT = 560           # seconds, passed to openclaw
-AGENT_CONCURRENCY = 3         # concurrent agent turns
-TASK_TTL = 24 * 3600          # task retention
 
 app = FastAPI(title="Kimiclaw A2A Gateway", version="0.1.0")
 
-AGENT_CARD = {
-    "protocolVersion": "1.0",
-    "name": "Kimiclaw",
-    "description": "A2A gateway into the OpenClaw agent (kimi-claw). Research, code, ops, writing, automation.",
-    "url": "https://kimiclaw.hoyack.ai/",
-    "provider": {"organization": "hoyack"},
-    "version": "0.1.0",
-    "capabilities": {
-        "streaming": True,
-        "pushNotifications": False,
-        "stateTransitionHistory": False,
-    },
-    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}},
-    "security": [{"bearerAuth": []}],
-    "defaultInputModes": ["text"],
-    "defaultOutputModes": ["text"],
-    "skills": [
-        {
-            "id": "general-agent",
-            "name": "General agent",
-            "description": "General-purpose agent: research, coding, shell ops, writing, planning, automation.",
-            "tags": ["general-purpose", "agent", "openclaw"],
-        }
-    ],
-    "supportsAuthenticatedExtendedCard": False,
-}
+from gateway.models import AGENT_CARD, now, rpc_error, make_agent_message, extract_text  # noqa: E402
 
 
 # ---------------- auth ----------------
@@ -100,39 +43,6 @@ async def bearer_auth(request: Request, call_next):
 
 
 # ---------------- helpers ----------------
-
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def rpc_error(req_id, code, message, data=None):
-    err = {"code": code, "message": message}
-    if data is not None:
-        err["data"] = data
-    return {"jsonrpc": "2.0", "id": req_id, "error": err}
-
-
-def make_agent_message(text: str) -> dict:
-    return {
-        "role": "agent",
-        "parts": [{"kind": "text", "text": text}],
-        "messageId": str(uuid.uuid4()),
-    }
-
-
-def extract_text(msg: dict) -> str:
-    out = []
-    for p in msg.get("parts") or []:
-        kind = p.get("kind")
-        if kind == "text":
-            out.append(p.get("text", ""))
-        elif kind == "data":
-            out.append(json.dumps(p.get("data")))
-        elif kind == "file":
-            name = (p.get("file") or {}).get("name", "?")
-            out.append(f"[file: {name}]")
-    return "\n".join(out).strip()
-
 
 def _last_json_block(raw: str):
     """Find the last parseable top-level JSON object in a noisy stream."""
