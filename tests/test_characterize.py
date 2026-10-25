@@ -29,7 +29,8 @@ def test_agent_card_public(gw_factory):
 def test_unauthorized(gw_factory, hdr):
     c = gw_factory()
     h = {"Authorization": hdr} if hdr else {}
-    for m, p in (("GET", "/"), ("POST", "/"), ("GET", "/docs"), ("GET", "/nope")):
+    for m, p in (("GET", "/"), ("POST", "/"), ("GET", "/docs"), ("GET", "/nope"),
+                 ("GET", "/readyz"), ("GET", "/openapi.json")):
         r = httpx.request(m, str(c.base_url) + p, headers=h)
         assert (r.status_code, r.json()) == (401, {"error": "unauthorized"})
 

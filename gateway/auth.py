@@ -1,10 +1,10 @@
-"""Bearer auth middleware: exact string match, same exemptions as the original."""
+"""Bearer auth middleware: exact string match, same exemptions as the original plus public /healthz."""
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from gateway.config import TOKEN
 
-PUBLIC_PATHS = {"/.well-known/agent.json"}
+PUBLIC_PATHS = {"/.well-known/agent.json", "/healthz"}
 
 
 async def bearer_auth(request: Request, call_next):

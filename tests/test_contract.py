@@ -19,7 +19,21 @@ def test_healthz_readyz(gw_factory):
     c = gw_factory()
     assert c.get("/healthz").json() == {"status": "ok"}
     assert c.get("/readyz").json() == {"status": "ready"}  # fake openclaw is on PATH
-    assert c.get("/healthz", headers={"Authorization": ""}).status_code == 401
+
+
+def test_healthz_public_minimal_readyz_protected(gw_factory):
+    import httpx
+    base = str(gw_factory().base_url)
+    for h in ({}, {"Authorization": "Bearer wrong"}):
+        r = httpx.get(base + "/healthz", headers=h)
+        assert (r.status_code, r.json()) == (200, {"status": "ok"})
+        r = httpx.get(base + "/readyz", headers=h)
+        assert (r.status_code, r.json()) == (401, {"error": "unauthorized"})
+    for m in ("POST", "PUT", "DELETE"):  # only GET /healthz exists; other methods are not a back door
+        assert httpx.request(m, base + "/healthz").status_code == 405
+    for p in ("/healthz/", "/healthz/x", "/openapi.json", "/redoc"):
+        r = httpx.get(base + p)
+        assert (r.status_code, r.json()) == (401, {"error": "unauthorized"})
 
 
 def test_readyz_without_openclaw(gw_factory):

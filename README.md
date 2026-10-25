@@ -41,9 +41,13 @@ openapi.yaml               frozen API contract (served spec must match; see test
 | GET | `/.well-known/agent.json` | public | agent card |
 | GET | `/` | bearer | service info |
 | POST | `/` | bearer | JSON-RPC: `message/send`, `message/stream`, `tasks/get`, `tasks/cancel` |
-| GET | `/healthz` | bearer | **new**: liveness, `{"status":"ok"}` |
+| GET | `/healthz` | public | **new**: liveness, returns only `{"status":"ok"}` (no version/config) |
 | GET | `/readyz` | bearer | **new**: 200 if `openclaw` is on PATH, else 503 |
+
 | GET | `/docs`, `/openapi.json` | bearer | Swagger UI and spec |
+
+> **`/readyz` returning 503 is by design, not an outage**, when OpenClaw isn't installed (e.g. the stock Docker
+> image, CI). Use `/healthz` for liveness; `/readyz` only means "can run agent turns". The Docker HEALTHCHECK uses `/healthz`.
 
 `message/send` is blocking by default. Through Cloudflare it is capped at ~120 s; for longer turns use
 `?wait=false` (or `params.configuration.blocking=false`) and poll `tasks/get`, or use `message/stream` (SSE, 15 s keepalives).
@@ -57,11 +61,15 @@ curl -s https://kimiclaw.hoyack.ai/ -H "Authorization: Bearer $KIMICLAW_TOKEN" -
 
 ## Environment variables (names only)
 
+See `.env.example` for a placeholder template. For the n8n A2A_Firewall webhook set `GATEWAY_NOTIFY_AUTH_MODE=basic`
+(the default `raw` will be rejected by that webhook's Basic auth).
+
+
 | Name | Default | Purpose |
 |---|---|---|
 | `KIMICLAW_TOKEN` | required (env or `.env`) | inbound bearer token; also the outbound notify credential |
 | `GATEWAY_NOTIFY_URL` | empty (disabled) | task-event webhook (n8n AI firewall) |
-| `GATEWAY_NOTIFY_AUTH_MODE` | `raw` | `raw` (token), `bearer`, or `basic` (user:token) |
+| `GATEWAY_NOTIFY_AUTH_MODE` | `raw` | `raw` (token), `bearer`, or `basic` (user:token). **Must be `basic` for the n8n A2A_Firewall webhook** |
 | `GATEWAY_NOTIFY_AUTH_USER` | `agent` | user for `basic` |
 | `GATEWAY_NOTIFY_EVENTS` | `task_completed,task_failed` | `task_started` also allowed |
 | `GATEWAY_NOTIFY_FAIL_LIMIT` | `5` | consecutive failures before circuit breaker opens |

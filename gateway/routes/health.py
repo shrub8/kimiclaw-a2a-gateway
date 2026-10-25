@@ -1,4 +1,4 @@
-"""New in this refactor: liveness and readiness probes (behind the bearer token like every non-card path)."""
+"""New in this refactor: liveness and readiness probes (/healthz is public and returns only {"status":"ok"}; /readyz needs the bearer token)."""
 import shutil
 
 from fastapi import APIRouter
@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 
-@router.get("/healthz")
+@router.get("/healthz", openapi_extra={"security": []})
 async def healthz():
     return {"status": "ok"}
 

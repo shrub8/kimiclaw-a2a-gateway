@@ -16,4 +16,7 @@ Golden replay (parity against fixtures recorded from original main; lives outsid
 ```bash
 python fixtures/golden.py replay-local --app-dir .     # expect "[default] 24 passed" and "[n8n_basic] 2 passed"
 ```
-Docker smoke: `docker build -t kimiclaw-gw .` (image needs openclaw added to pass /readyz).
+Docker smoke: `docker build -t kimiclaw-gw .`; the HEALTHCHECK hits public `/healthz`.
+
+**`/readyz` returns 503 without OpenClaw installed. That is by design, not an outage.** CI and the stock image
+have no `openclaw`, so expect 503 there (tests cover it). Probe `/healthz` (public, `{"status":"ok"}`) for liveness.
