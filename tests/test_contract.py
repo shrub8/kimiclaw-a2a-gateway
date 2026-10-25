@@ -192,3 +192,27 @@ def test_agent_error_stderr_and_traceback_not_in_stdout_or_logs(tmp_path):
     for text in (out, (tdir / "logs.jsonl").read_text()):
         for needle in ("boom", "PROMPT-ECHO-99", "Traceback"):
             assert needle not in text, needle
+
+
+def _run_success(tmp_path, env):
+    import httpx
+    from conftest import start_gateway, TOKEN
+    tdir = tmp_path / "tel"
+    p, base, _ = start_gateway(tmp_path, {"GATEWAY_TELEMETRY_DIR": str(tdir), **env})
+    h = {"Authorization": f"Bearer {TOKEN}"}
+    r = httpx.post(base + "/", json=_rpc("PROMPT-OK-77 hello", "ok77"), headers=h, timeout=30).json()
+    assert r["result"]["status"]["state"] != "failed"
+    p.terminate(); p.wait(10)
+    return (tmp_path / "gateway.log").read_text(), (tdir / "logs.jsonl").read_text()
+
+
+def test_success_prompt_not_in_stdout_or_logs_by_default(tmp_path):
+    out, logs = _run_success(tmp_path, {})
+    assert "inbound task_id=" in out and "len=18" in out
+    for text in (out, logs):
+        assert "PROMPT-OK-77" not in text
+
+
+def test_success_prompt_logged_when_payload_flag_on(tmp_path):
+    out, _ = _run_success(tmp_path, {"GATEWAY_LOG_PAYLOADS": "1"})
+    assert "PROMPT-OK-77" in out

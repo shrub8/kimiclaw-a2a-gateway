@@ -96,6 +96,8 @@ async def start_task(req_id, params, queue: asyncio.Queue | None):
 
     if LOG_PAYLOADS:
         LOG.info("inbound task_id=%s ctx=%s role=%s text=%r", task_id, ctx_id, msg.get("role"), text[:2000])
+    else:
+        LOG.info("inbound task_id=%s len=%d", task_id, len(text))
 
     async with store_lock:
         prune_tasks()
