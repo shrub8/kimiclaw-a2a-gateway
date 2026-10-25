@@ -4,6 +4,8 @@ import json
 import time
 
 from gateway.config import AGENT_TIMEOUT, LOG
+from opentelemetry.trace import Status, StatusCode
+
 from gateway.telemetry import agent_ms, tracer
 
 
@@ -41,9 +43,15 @@ def parse_agent_reply(raw: str) -> str:
 
 async def run_agent(session_id: str, text: str) -> str:
     started = time.perf_counter()
-    with tracer.start_as_current_span("agent.run", attributes={"session.id": session_id}):
+    # No record_exception: agent stderr can echo message text, and telemetry must never carry it.
+    with tracer.start_as_current_span("agent.run", attributes={"session.id": session_id},
+                                      record_exception=False, set_status_on_exception=False) as span:
         try:
             return await _run_agent(session_id, text)
+        except BaseException as e:
+            span.set_status(Status(StatusCode.ERROR, type(e).__name__))
+            span.set_attribute("error.type", type(e).__name__)
+            raise
         finally:
             agent_ms.record((time.perf_counter() - started) * 1000)
 

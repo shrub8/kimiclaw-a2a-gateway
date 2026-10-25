@@ -9,13 +9,14 @@ python -m pytest tests -q          # characterization + contract tests, ~35 s
 ```
 
 Contract check only: `python -m pytest tests/test_contract.py -q`
-If routes or schemas change on purpose: `KIMICLAW_TOKEN=x python tools_freeze_openapi.py` and commit openapi.yaml.
+If routes or schemas change on purpose: `KIMICLAW_TOKEN=x python tools/freeze_openapi.py` and commit openapi.yaml.
 
-Golden replay (parity against fixtures recorded from original main; lives outside the repo for now at
-/workspace/kimiclaw/fixtures, may be vendored later):
+Golden replay (parity against fixtures recorded from original main, vendored in tests/golden/):
 ```bash
-python fixtures/golden.py replay-local --app-dir .     # expect "[default] 24 passed" and "[n8n_basic] 2 passed"
+python tests/golden/golden.py replay-local --app-dir .   # expect "[default] 24 passed" and "[n8n_basic] 2 passed"
 ```
+Everything at once (pytest + golden replay, non-zero exit on failure): `./check.sh` (uses `.venv/bin/python` if
+present, else `python`).
 Docker smoke: `docker build -t kimiclaw-gw .`; the HEALTHCHECK hits public `/healthz`.
 
 **`/readyz` returns 503 without OpenClaw installed. That is by design, not an outage.** CI and the stock image

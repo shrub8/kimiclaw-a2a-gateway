@@ -76,12 +76,12 @@ See `.env.example` for a placeholder template. For the n8n A2A_Firewall webhook 
 | `GATEWAY_NOTIFY_COOLDOWN_S` | `900` | breaker pause |
 | `GATEWAY_LOG_PAYLOADS` | `0` | `1` logs inbound message text (first 2000 chars) to stdout |
 | `GATEWAY_TELEMETRY_DIR` | `telemetry` | new: where trace/metric/log files go |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | new: when set, also export via OTLP/HTTP (standard `OTEL_*` vars apply) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | new: when set (e.g. `https://otel.example.com:4318`), traces, metrics and logs go via OTLP/HTTP **instead of** the files. Standard `OTEL_*` vars apply. `http://` to a non-localhost host logs a plaintext warning |
 | `OTEL_SERVICE_NAME` | `kimiclaw-a2a-gateway` | new |
 
 ## Telemetry
 
-Rotating files (10 MB x 5) in `GATEWAY_TELEMETRY_DIR`: `traces.jsonl` (spans `rpc`, `agent.run`, `notify`),
+Daily-rotated files (7 days kept; replaced by OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set) in `GATEWAY_TELEMETRY_DIR`: `traces.jsonl` (spans `rpc`, `agent.run`, `notify`),
 `metrics.jsonl` (`gateway.requests`, `gateway.request.duration`, `gateway.agent.duration`, `gateway.notify.failures`,
 `gateway.notify.breaker_opens`; flushed every 60 s and on shutdown), `logs.jsonl` (one JSON line per request and per
 finished task: IDs, method, status, timing; never message or reply text). The existing stdout/journal log lines are unchanged.

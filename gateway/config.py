@@ -12,14 +12,19 @@ LOG = logging.getLogger("kimiclaw")
 
 
 def _load_token() -> str:
-    tok = os.environ.get("KIMICLAW_TOKEN")
-    if tok:
-        return tok.strip()
-    with open(os.path.join(BASE_DIR, ".env")) as f:
-        for line in f:
-            if line.startswith("KIMICLAW_TOKEN="):
-                return line.split("=", 1)[1].strip()
-    raise RuntimeError("KIMICLAW_TOKEN not set")
+    """Env var first, then .env. Missing or empty fails at startup with a clear message (never the value)."""
+    tok = (os.environ.get("KIMICLAW_TOKEN") or "").strip()
+    if not tok:
+        env_path = os.path.join(BASE_DIR, ".env")
+        if os.path.exists(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    if line.startswith("KIMICLAW_TOKEN="):
+                        tok = line.split("=", 1)[1].strip()
+                        break
+    if not tok:
+        raise RuntimeError("KIMICLAW_TOKEN not set (set the env var or add KIMICLAW_TOKEN=... to .env; empty is refused)")
+    return tok
 
 
 TOKEN = _load_token()
