@@ -1,4 +1,4 @@
-import json, os, socket, subprocess, sys, threading, time
+import os, socket, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import httpx, pytest
 

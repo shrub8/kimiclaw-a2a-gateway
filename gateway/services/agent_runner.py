@@ -1,8 +1,10 @@
 """Runs one OpenClaw turn as a subprocess and extracts the reply."""
 import asyncio
 import json
+import time
 
 from gateway.config import AGENT_TIMEOUT, LOG
+from gateway.telemetry import agent_ms, tracer
 
 
 def _last_json_block(raw: str):
@@ -38,6 +40,15 @@ def parse_agent_reply(raw: str) -> str:
 
 
 async def run_agent(session_id: str, text: str) -> str:
+    started = time.perf_counter()
+    with tracer.start_as_current_span("agent.run", attributes={"session.id": session_id}):
+        try:
+            return await _run_agent(session_id, text)
+        finally:
+            agent_ms.record((time.perf_counter() - started) * 1000)
+
+
+async def _run_agent(session_id: str, text: str) -> str:
     cmd = [
         "openclaw", "agent",
         "--local",

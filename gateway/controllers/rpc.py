@@ -40,12 +40,14 @@ async def handle_rpc(request: Request):
     method = body.get("method")
     req_id = body.get("id")
     params = body.get("params") or {}
+    request.state.ids = {"rpc_method": method, "rpc_id": req_id}
 
     if method == "message/send":
         started = await start_task(req_id, params, None)
         if "error" in started:
             return JSONResponse(started)
         task_id = started["taskId"]
+        request.state.ids.update(task_id=task_id, context_id=started["contextId"])
         # Non-blocking mode: ?wait=false or params.configuration.blocking=false.
         # Returns the task immediately (A2A polling pattern: client then tracks via
         # tasks/get or the notify webhook). Avoids the Cloudflare ~120s proxy timeout.

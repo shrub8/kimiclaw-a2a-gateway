@@ -8,6 +8,7 @@ from gateway.config import AGENT_CONCURRENCY, LOG, LOG_PAYLOADS, MAX_TEXT, TASK_
 from gateway.models import extract_text, make_agent_message, now, rpc_error
 from gateway.services.agent_runner import run_agent
 from gateway.services.notifier import notify
+from gateway.telemetry import event
 
 tasks: dict[str, dict] = {}
 store_lock = asyncio.Lock()
@@ -71,6 +72,8 @@ async def execute_task(task_id: str, ctx_id: str, text: str, queue: asyncio.Queu
     if queue is not None:
         await queue.put(None)
     entry["done"].set()
+    event("task_finished", task_id=task_id, context_id=ctx_id, state=state,
+          duration_ms=int((time.time() - started) * 1000))
     await notify(f"task_{state}", task_id, ctx_id, {
         "state": state,
         "reply": reply[:4000],
