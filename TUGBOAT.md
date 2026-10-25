@@ -21,3 +21,5 @@ Docker smoke: `docker build -t kimiclaw-gw .`; the HEALTHCHECK hits public `/hea
 
 **`/readyz` returns 503 without OpenClaw installed. That is by design, not an outage.** CI and the stock image
 have no `openclaw`, so expect 503 there (tests cover it). Probe `/healthz` (public, `{"status":"ok"}`) for liveness.
+
+- Daily telemetry log rotation assumes a single uvicorn worker; multiple workers would race on rotation.

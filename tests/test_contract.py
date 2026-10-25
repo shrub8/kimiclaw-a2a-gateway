@@ -176,3 +176,19 @@ def test_otlp_endpoint_replaces_files_and_warns_on_plaintext(tmp_path):
     p.kill(); p.wait(10)
     assert not tdir.exists() or not any(tdir.iterdir())
     assert "telemetry is sent unencrypted" in (tmp_path / "gateway.log").read_text()
+
+
+def test_agent_error_stderr_and_traceback_not_in_stdout_or_logs(tmp_path):
+    import httpx
+    from conftest import start_gateway, TOKEN
+    tdir = tmp_path / "tel"
+    p, base, _ = start_gateway(tmp_path, {"GATEWAY_TELEMETRY_DIR": str(tdir)})
+    h = {"Authorization": f"Bearer {TOKEN}"}
+    bad = httpx.post(base + "/", json=_rpc("PROMPT-ECHO-99 FAIL", "bad2"), headers=h, timeout=30).json()
+    assert bad["result"]["status"]["state"] == "failed"
+    p.terminate(); p.wait(10)
+    out = (tmp_path / "gateway.log").read_text()
+    assert "agent run failed task=" in out and "error_type=" in out
+    for text in (out, (tdir / "logs.jsonl").read_text()):
+        for needle in ("boom", "PROMPT-ECHO-99", "Traceback"):
+            assert needle not in text, needle

@@ -9,7 +9,7 @@ replay:  python golden.py replay --base-url URL --n8n-port PORT [--profile defau
 replay-local: python golden.py replay-local --app-dir DIR   (starts DIR's app with stubs, then replays)
 Normalized: timestamps, UUIDs, durationMs, Content-Length/Date/server headers.
 """
-import argparse, json, os, re, socket, subprocess, sys, threading, time
+import argparse, json, os, re, socket, subprocess, sys, tempfile, threading, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import httpx
 
@@ -150,7 +150,7 @@ def start_app(app_dir, n8n_port, extra=None):
     port = free_port()
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GATEWAY_", "KIMICLAW_"))}
     env.update(KIMICLAW_TOKEN=TOKEN, PATH=os.path.join(HERE, "fakebin") + os.pathsep + env["PATH"],
-               FAKE_OPENCLAW_RECORD=os.path.join(HERE, ".openclaw-argv.jsonl"),
+               FAKE_OPENCLAW_RECORD=os.path.join(tempfile.mkdtemp(prefix="golden-"), "openclaw-argv.jsonl"),
                GATEWAY_NOTIFY_URL=f"http://127.0.0.1:{n8n_port}/webhook/firewall", NO_PROXY="*")
     env.update(extra or {})
     p = subprocess.Popen([sys.executable, "-m", "uvicorn", "app:app", "--port", str(port), "--log-level", "warning"], cwd=app_dir, env=env)

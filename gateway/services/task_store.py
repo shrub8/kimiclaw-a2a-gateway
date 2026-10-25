@@ -45,7 +45,7 @@ async def execute_task(task_id: str, ctx_id: str, text: str, queue: asyncio.Queu
             reply = await run_agent(session, text)
             state = "completed"
         except Exception as e:
-            LOG.exception("agent run failed task=%s", task_id)
+            LOG.error("agent run failed task=%s error_type=%s", task_id, type(e).__name__)
             reply = f"agent error: {e}"
             state = "failed"
 
